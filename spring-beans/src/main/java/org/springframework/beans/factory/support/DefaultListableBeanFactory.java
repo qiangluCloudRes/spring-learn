@@ -817,13 +817,21 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		// Iterate over a copy to allow for init methods which in turn register new bean definitions.
 		// While this may not be part of the regular factory bootstrap, it does otherwise work fine.
+		/**
+		 * 需要初始化的beanName列表
+		 */
 		List<String> beanNames = new ArrayList<>(this.beanDefinitionNames);
 
 		// Trigger initialization of all non-lazy singleton beans...
+		/**
+		 * 遍历初始化每一个bean
+		 */
 		for (String beanName : beanNames) {
+			//获取关于bean的定义
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
-				if (isFactoryBean(beanName)) {
+				//非非抽象对象 && 是单例（原型模式，在真正使用时才会创建） && 不是延迟初始化
+				if (isFactoryBean(beanName)) {//如果是FactoryBean，则调FactoryBean 的getObject方法获取对象
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					if (bean instanceof FactoryBean) {
 						final FactoryBean<?> factory = (FactoryBean<?>) bean;
@@ -842,7 +850,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						}
 					}
 				}
-				else {
+				else {//普通bean的初始化
 					getBean(beanName);
 				}
 			}
@@ -1143,6 +1151,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	@Nullable
+	/**
+	 * 获取依赖的bean
+	 */
 	public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
 
@@ -1161,6 +1172,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
+				/**
+				 * 获取属性依赖的其他 bean
+				 */
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
 			return result;
@@ -1203,7 +1217,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			if (multipleBeans != null) {
 				return multipleBeans;
 			}
-
+			/**
+			 * 获取由@Autowire注解的属性
+			 */
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (matchingBeans.isEmpty()) {
 				if (isRequired(descriptor)) {
@@ -1214,8 +1230,13 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 			String autowiredBeanName;
 			Object instanceCandidate;
-
+			/**
+			 * 如果存在@Autowire的多个属性，则需要初始化这个bean属性
+			 */
 			if (matchingBeans.size() > 1) {
+				/**
+				 * 当有多个bean需要初始化时，要检查注入的顺序。优先初始化有@Primary注解的bean 或者 是根据@Priority 处理
+				 */
 				autowiredBeanName = determineAutowireCandidate(matchingBeans, descriptor);
 				if (autowiredBeanName == null) {
 					if (isRequired(descriptor) || !indicatesMultipleBeans(type)) {
@@ -1230,16 +1251,25 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 				instanceCandidate = matchingBeans.get(autowiredBeanName);
 			}
-			else {
+			else {//只有一个@Autowire 属性时
 				// We have exactly one match.
 				Map.Entry<String, Object> entry = matchingBeans.entrySet().iterator().next();
+				/**
+				 * beanName
+				 */
 				autowiredBeanName = entry.getKey();
+				/**
+				 * bean 的类对象
+				 */
 				instanceCandidate = entry.getValue();
 			}
 
 			if (autowiredBeanNames != null) {
 				autowiredBeanNames.add(autowiredBeanName);
 			}
+			/**
+			 * 如果得到了需要注入的bean的类对象，根据beanName获取该对象（如果null ，create）
+			 */
 			if (instanceCandidate instanceof Class) {
 				instanceCandidate = descriptor.resolveCandidate(autowiredBeanName, type, this);
 			}

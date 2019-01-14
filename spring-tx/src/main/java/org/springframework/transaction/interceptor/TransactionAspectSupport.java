@@ -637,7 +637,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			return this.joinpointIdentification;
 		}
 
-		public void newTransactionStatus(@Nullable TransactionStatus status) {
+		public void newTransactionStatus(@Nullable TransactionStatus status)  {
 			this.transactionStatus = status;
 		}
 

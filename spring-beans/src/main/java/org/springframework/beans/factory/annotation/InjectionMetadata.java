@@ -82,7 +82,7 @@ public class InjectionMetadata {
 		Collection<InjectedElement> checkedElements = this.checkedElements;
 		Collection<InjectedElement> elementsToIterate =
 				(checkedElements != null ? checkedElements : this.injectedElements);
-		if (!elementsToIterate.isEmpty()) {
+		if (!elementsToIterate.isEmpty()) {//当前要注入的属性列表不为null，遍历每个属性注入
 			for (InjectedElement element : elementsToIterate) {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Processing injected element of bean '" + beanName + "': " + element);

@@ -512,12 +512,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	public void refresh() throws BeansException, IllegalStateException {
 		synchronized (this.startupShutdownMonitor) {
 			// Prepare this context for refreshing.
+			//执行AnnotationConfigEmbeddedWebApplicationContext 的 prepareRefresh
 			prepareRefresh();
 
 			// Tell the subclass to refresh the internal bean factory.
+			//beanFactory 即 DefaultListaleBeanFactory
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
+			//BeanFactory 的一些预置工作
 			prepareBeanFactory(beanFactory);
 
 			try {
@@ -526,6 +529,33 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 				// Invoke factory processors registered as beans in the context.
 				invokeBeanFactoryPostProcessors(beanFactory);
+
+				/**
+				 * 添加beanPostProcessors ,bean 初始化时，遍历每一个postProcessor，处理不同的事情
+				 * 如：AutowireAnnotationBeanPostProcessor 在bean实例化过程中，检查当前实例化的bean的属性是否包含@Autowire
+				 * 注解的属性（即当前bean对象依赖的其他bean），如果有，执行依赖的实例化
+				 * 注册的processor 如下：
+				 10 = "configurationPropertiesBeans"
+				 9 = "persistenceExceptionTranslationPostProcessor"
+				 8 = "dataSourceInitializerPostProcessor"
+				 7 = "methodValidationPostProcessor"
+				 6 = "errorPageRegistrarBeanPostProcessor"
+				 5 = "embeddedServletContainerCustomizerBeanPostProcessor"
+				 4 = "org.springframework.boot.context.properties.ConfigurationPropertiesBindingPostProcessor"
+				 3 = "org.springframework.aop.config.internalAutoProxyCreator" 处理aop 代理对象生成逻辑
+				 2 = "org.springframework.context.annotation.internalCommonAnnotationProcessor"
+				 1 = "org.springframework.context.annotation.internalRequiredAnnotationProcessor"
+				 0 = "org.springframework.context.annotation.internalAutowiredAnnotationProcessor" 处理@Autowire 注解的属性
+				 *
+				 * register后postProcessor 包含如下几个重要的：
+				 * 1、AnnotationAwareAspectJAutoProxyCreator
+				 * 2、AutowiredAnnotationBeanPostProcessor
+				 * 3、RequiredAnnotationBeanPostProcessor
+				 * 4、CommonAnnotationBeanProcessor
+				 * 5、ConfigAnnotationBeanPostProcessor
+				 * 6、DataSourceInitializerPostProcessor
+				 * 等
+				 */
 
 				// Register bean processors that intercept bean creation.
 				registerBeanPostProcessors(beanFactory);
@@ -536,16 +566,26 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// Initialize event multicaster for this context.
 				initApplicationEventMulticaster();
 
-				// Initialize other special beans in specific context subclasses.
+				// Initialize other special beans in specific context subclasses
+				/**
+				 * 创建web container
+				 */
 				onRefresh();
 
 				// Check for listener beans and register them.
+				/**
+				 * applicationListenerBean 中包含 mvcResourceUrlProvider
+				 */
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
+				/**
+				 * bean 初始化、注册
+				 */
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+				//启动web容器,在spring boot 1.5.x 的版本中，执行的是EmbeddedWebApplicationContext重写的finishRefresh方法
 				finishRefresh();
 			}
 
@@ -630,6 +670,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
+		//设置classLoader
 		beanFactory.setBeanClassLoader(getClassLoader());
 		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
@@ -688,6 +729,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * <p>Must be called before singleton instantiation.
 	 */
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		//触发bean xml的装载
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
@@ -860,6 +902,9 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		/**
+		 * bean 真正实例化的细节开始。目前使用的beanFactory是DefaultListableBeanFactory
+		 */
 		beanFactory.preInstantiateSingletons();
 	}
 

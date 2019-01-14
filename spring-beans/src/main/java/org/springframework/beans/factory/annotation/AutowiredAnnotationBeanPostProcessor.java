@@ -369,8 +369,14 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		/**
+		 * 根据beanName 获取对应的由autowire 注解的对象
+		 */
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
+			/**
+			 * 执行注入,查看AutowiredFieldElement注入逻辑
+			 */
 			metadata.inject(bean, beanName, pvs);
 		}
 		catch (BeanCreationException ex) {
@@ -562,6 +568,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	/**
 	 * Class representing injection information about an annotated field.
 	 */
+	/**
+	 * @Autowire 注解注入的对象执行注入操作
+	 */
 	private class AutowiredFieldElement extends InjectionMetadata.InjectedElement {
 
 		private final boolean required;
@@ -578,8 +587,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
-			Field field = (Field) this.member;
-			Object value;
+			Field field = (Field) this.member;//当前主要注入bean的对象属性
+			Object value;//需要注入的value
 			if (this.cached) {
 				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 			}
@@ -590,6 +599,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 				Assert.state(beanFactory != null, "No BeanFactory available");
 				TypeConverter typeConverter = beanFactory.getTypeConverter();
 				try {
+					/**
+					 * desc 为当前创建的bean 要依赖的其他bean的描述
+					 * beanName 当前创建的bean 的name
+					 */
 					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 				}
 				catch (BeansException ex) {
