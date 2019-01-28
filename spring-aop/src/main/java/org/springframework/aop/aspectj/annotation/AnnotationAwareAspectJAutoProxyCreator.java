@@ -46,6 +46,12 @@ import org.springframework.util.Assert;
  * @since 2.0
  * @see org.springframework.aop.aspectj.annotation.AspectJAdvisorFactory
  */
+
+/**
+ *  bean 工具类，用于在bean实例化后，即触发父类AbstractAutoProxyCreator 的postProcessAfterInitialization方法，
+ *  如果bean对象需要创建代理对象，如有spring cache、transaction等注解，则为当前bean创建代理对象。详情查看
+ *  postProcessAfterInitialization 方法注释
+ */
 @SuppressWarnings("serial")
 public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorAutoProxyCreator {
 

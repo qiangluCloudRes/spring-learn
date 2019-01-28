@@ -236,6 +236,9 @@ public class DataSourceTransactionManager extends AbstractPlatformTransactionMan
 	protected Object doGetTransaction() {
 		DataSourceTransactionObject txObject = new DataSourceTransactionObject();
 		txObject.setSavepointAllowed(isNestedTransactionAllowed());
+		/**
+		 * 根据数据源获取数据库连接,可能为null
+		 */
 		ConnectionHolder conHolder =
 				(ConnectionHolder) TransactionSynchronizationManager.getResource(obtainDataSource());
 		txObject.setConnectionHolder(conHolder, false);
@@ -253,45 +256,74 @@ public class DataSourceTransactionManager extends AbstractPlatformTransactionMan
 	 */
 	@Override
 	protected void doBegin(Object transaction, TransactionDefinition definition) {
+		/**
+		 * 当前线程的前一个事务对象
+		 */
 		DataSourceTransactionObject txObject = (DataSourceTransactionObject) transaction;
 		Connection con = null;
 
 		try {
-			if (!txObject.hasConnectionHolder() ||
+			if (!txObject.hasConnectionHolder() || //如果没有连接未创建。连接未创建有两种情况，
+					// 第一: 首次开启事务，第二：当前事务传播级别是require_new。require_new 时transaction 中
+					// 的connection在 suspend时设置已为null
 					txObject.getConnectionHolder().isSynchronizedWithTransaction()) {
+				/**
+				 * 获取数据源创建新连接
+				 */
 				Connection newCon = obtainDataSource().getConnection();
 				if (logger.isDebugEnabled()) {
 					logger.debug("Acquired Connection [" + newCon + "] for JDBC transaction");
 				}
+				/**
+				 * 因为是新创建的连接，所以newConnectionHolder是 true
+				 */
 				txObject.setConnectionHolder(new ConnectionHolder(newCon), true);
 			}
 
 			txObject.getConnectionHolder().setSynchronizedWithTransaction(true);
+			//获取transaction 的连接引用
 			con = txObject.getConnectionHolder().getConnection();
-
+			//设置隔离级别
 			Integer previousIsolationLevel = DataSourceUtils.prepareConnectionForTransaction(con, definition);
 			txObject.setPreviousIsolationLevel(previousIsolationLevel);
 
 			// Switch to manual commit if necessary. This is very expensive in some JDBC drivers,
 			// so we don't want to do it unnecessarily (for example if we've explicitly
 			// configured the connection pool to set it already).
+			/**
+			 * 判断当前连接是否开启了自动提交，如果是连接复用，可能已经设置过AutoCommit = false
+			 */
 			if (con.getAutoCommit()) {
 				txObject.setMustRestoreAutoCommit(true);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Switching JDBC Connection [" + con + "] to manual commit");
 				}
+				/**
+				 * 取消自动提交，即开启手动触发提交通过begin-commit 提交事务
+				 */
 				con.setAutoCommit(false);
 			}
-
+			/**
+			 * 检测事务的其他属性，如read only等，需要创建Statement 并执行
+			 */
 			prepareTransactionalConnection(con, definition);
 			txObject.getConnectionHolder().setTransactionActive(true);
 
+			/**
+			 * 设置超时
+			 */
 			int timeout = determineTimeout(definition);
 			if (timeout != TransactionDefinition.TIMEOUT_DEFAULT) {
 				txObject.getConnectionHolder().setTimeoutInSeconds(timeout);
 			}
 
 			// Bind the connection holder to the thread.
+			/**
+			 * 将事务信息绑定到当前线程，后面执行mybatis相关的sql时，SimpleExecutor的prepareStatement会尝试创建执行语句，
+			 * 此时需要获取到connection，DataSourceUtils 的doGetConnection 根据数据源调TransactionSynchronizationManager
+			 * 的getResource 方法获取与当前线程绑定的connection，即获取到当前创建的连接，执行事务操作，能通过当前线程查询到事务信息。
+			 * 执行时：SqlSessionTemplate 的isSqlSessionTransactional 方法会判断session是否是transactional
+			 */
 			if (txObject.isNewConnectionHolder()) {
 				TransactionSynchronizationManager.bindResource(obtainDataSource(), txObject.getConnectionHolder());
 			}
@@ -313,12 +345,22 @@ public class DataSourceTransactionManager extends AbstractPlatformTransactionMan
 		return TransactionSynchronizationManager.unbindResource(obtainDataSource());
 	}
 
+	/**
+	 * 恢复事务，即将指定的suspendedResources 的事务与当前事务绑定
+	 * @param transaction transaction object returned by {@code doGetTransaction}
+	 * @param suspendedResources the object that holds suspended resources,
+	 * as returned by doSuspend
+	 */
 	@Override
 	protected void doResume(@Nullable Object transaction, Object suspendedResources) {
 		TransactionSynchronizationManager.bindResource(obtainDataSource(), suspendedResources);
 	}
 
+
 	@Override
+	/**
+	 * 根据TransactionStatus 获取到connection，并执行commit
+	 */
 	protected void doCommit(DefaultTransactionStatus status) {
 		DataSourceTransactionObject txObject = (DataSourceTransactionObject) status.getTransaction();
 		Connection con = txObject.getConnectionHolder().getConnection();
@@ -334,6 +376,9 @@ public class DataSourceTransactionManager extends AbstractPlatformTransactionMan
 	}
 
 	@Override
+	/**
+	 * 根据TransactionStatus 获取到connection，并执行rollback
+	 */
 	protected void doRollback(DefaultTransactionStatus status) {
 		DataSourceTransactionObject txObject = (DataSourceTransactionObject) status.getTransaction();
 		Connection con = txObject.getConnectionHolder().getConnection();

@@ -548,8 +548,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				 0 = "org.springframework.context.annotation.internalAutowiredAnnotationProcessor" 处理@Autowire 注解的属性
 				 *
 				 * register后postProcessor 包含如下几个重要的：
-				 * 1、AnnotationAwareAspectJAutoProxyCreator
-				 * 2、AutowiredAnnotationBeanPostProcessor
+				 * 1、AnnotationAwareAspectJAutoProxyCreator beam 实例化后，负责创建代理对象，比如spring cache、transaction等操作都需要生成代理对象
+				 * 2、AutowiredAnnotationBeanPostProcessor   处理注解bean的实例
 				 * 3、RequiredAnnotationBeanPostProcessor
 				 * 4、CommonAnnotationBeanProcessor
 				 * 5、ConfigAnnotationBeanPostProcessor

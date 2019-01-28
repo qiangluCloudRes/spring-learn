@@ -324,6 +324,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				if (mbd.isSingleton()) {//如果当前bean是单例，开始创建
+					// (contoller uri 处理在spring-webmvc 模块的RequestMappingHandlerAdapter 中)
 					sharedInstance = getSingleton(beanName, () -> {//回调创建bean
 						try {
 							return createBean(beanName, mbd, args);

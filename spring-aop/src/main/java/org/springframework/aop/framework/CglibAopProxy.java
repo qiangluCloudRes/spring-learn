@@ -155,6 +155,12 @@ class CglibAopProxy implements AopProxy, Serializable {
 		return getProxy(null);
 	}
 
+	/**
+	 * 使用cglib 库创建动态代理对象
+	 * @param classLoader the class loader to create the proxy with
+	 * (or {@code null} for the low-level proxy facility's default)
+	 * @return
+	 */
 	@Override
 	public Object getProxy(@Nullable ClassLoader classLoader) {
 		if (logger.isTraceEnabled()) {
@@ -176,9 +182,13 @@ class CglibAopProxy implements AopProxy, Serializable {
 
 			// Validate the class, writing log messages as necessary.
 			validateClassIfNecessary(proxySuperClass, classLoader);
-
+			/**
+			 * cglib 代理对象创建流程
+			 */
 			// Configure CGLIB Enhancer...
+			//首先必须创建 Enhancer
 			Enhancer enhancer = createEnhancer();
+			//设置classloader
 			if (classLoader != null) {
 				enhancer.setClassLoader(classLoader);
 				if (classLoader instanceof SmartClassLoader &&
@@ -188,17 +198,27 @@ class CglibAopProxy implements AopProxy, Serializable {
 			}
 			enhancer.setSuperclass(proxySuperClass);
 			enhancer.setInterfaces(AopProxyUtils.completeProxiedInterfaces(this.advised));
+			/**
+			 * 设置生成的代理对象的命名方式
+			 */
 			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
 			enhancer.setStrategy(new ClassLoaderAwareUndeclaredThrowableStrategy(classLoader));
 
+			/**
+			 * 根据class 获取和当前类的回调，即在invoke时执行，重点
+			 */
 			Callback[] callbacks = getCallbacks(rootClass);
 			Class<?>[] types = new Class<?>[callbacks.length];
 			for (int x = 0; x < types.length; x++) {
 				types[x] = callbacks[x].getClass();
 			}
 			// fixedInterceptorMap only populated at this point, after getCallbacks call above
+			/**
+			 * cglib 可以设置filter，用于执行时，动态选择符合的interceptor并执行
+			 */
 			enhancer.setCallbackFilter(new ProxyCallbackFilter(
 					this.advised.getConfigurationOnlyCopy(), this.fixedInterceptorMap, this.fixedInterceptorOffset));
+
 			enhancer.setCallbackTypes(types);
 
 			// Generate the proxy class and create a proxy instance.
@@ -215,6 +235,12 @@ class CglibAopProxy implements AopProxy, Serializable {
 		}
 	}
 
+	/**
+	 * 利用 enhancer 创建代理对象
+	 * @param enhancer
+	 * @param callbacks
+	 * @return
+	 */
 	protected Object createProxyClassAndInstance(Enhancer enhancer, Callback[] callbacks) {
 		enhancer.setInterceptDuringConstruction(false);
 		enhancer.setCallbacks(callbacks);
@@ -285,6 +311,10 @@ class CglibAopProxy implements AopProxy, Serializable {
 		boolean isStatic = this.advised.getTargetSource().isStatic();
 
 		// Choose an "aop" interceptor (used for AOP calls).
+		/**
+		 * 用戶自定义的各种拦截advised，重点。当代理对象执行intercept（jdk代理中是invoke函数）函数时，执行Callback
+		 * 中的interceptor，即处理aopInterceptor 中的advised
+		 */
 		Callback aopInterceptor = new DynamicAdvisedInterceptor(this.advised);
 
 		// Choose a "straight to target" interceptor. (used for calls that are
@@ -305,7 +335,9 @@ class CglibAopProxy implements AopProxy, Serializable {
 		// unadvised calls to static targets that cannot return this).
 		Callback targetDispatcher = (isStatic ?
 				new StaticDispatcher(this.advised.getTargetSource().getTarget()) : new SerializableNoOp());
-
+		/**
+		 * 对于每个生成的代理对象都生成一个Interceptor
+		 */
 		Callback[] mainCallbacks = new Callback[] {
 				aopInterceptor,  // for normal advice
 				targetInterceptor,  // invoke target without considering advice, if optimized
@@ -671,7 +703,13 @@ class CglibAopProxy implements AopProxy, Serializable {
 				// Get as late as possible to minimize the time we "own" the target, in case it comes from a pool...
 				target = targetSource.getTarget();
 				Class<?> targetClass = (target != null ? target.getClass() : null);
+				/**
+				 * 获取调用链
+				 */
 				List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+				/**
+				 *  执行代理对象方法的返回值
+				 */
 				Object retVal;
 				// Check whether we only have one InvokerInterceptor: that is,
 				// no real advice, but just reflective invocation of the target.
@@ -685,6 +723,9 @@ class CglibAopProxy implements AopProxy, Serializable {
 				}
 				else {
 					// We need to create a method invocation...
+					/**
+					 * 创建CglibMethodInvocation 执行方法的所有回调，并返回结果
+					 */
 					retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
 				}
 				retVal = processReturnType(proxy, target, method, retVal);

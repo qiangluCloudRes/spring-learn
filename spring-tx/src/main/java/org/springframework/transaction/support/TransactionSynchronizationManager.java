@@ -134,6 +134,20 @@ public abstract class TransactionSynchronizationManager {
 	 * resource object), or {@code null} if none
 	 * @see ResourceTransactionManager#getResourceFactory()
 	 */
+
+	/**
+	 * 根据数据源，获取当前线程是否已经建立了到数据库的连接。
+	 *
+	 * 执行一个事务时，resources 会包含ConnectionHolder和sqlSessionHolder，其中ConnectionHolder 根据数据源dataSource
+	 * 与数据库建立的连接，sqlSessionHolder 也是根据数据源获取的关于数据库的一些信息。执行sql时，使用的是ConnectionHolder
+	 * 连接。详情查看 与mybatis的交互。主要类：入口MapperFactoryBean ,MapperProxy，SqlSessionTemplate 的SqlSessionInterceptor 方法，其中getSqlSession
+	 * 会创建SqlSessionHolder（包含DefaultSqlSession），执行method.invoke时，即执行DefaultSqlSession实例的方法,在doUpdate 方法
+	 * 的  stmt = prepareStatement(handler, ms.getStatementLog()); 中，查询当前线程的ConnectionHolder，至此，注解开启事务的
+	 * 连接在执行sql时关联起来了
+	 *
+	 * @param key
+	 * @return
+	 */
 	@Nullable
 	public static Object getResource(Object key) {
 		Object actualKey = TransactionSynchronizationUtils.unwrapResourceIfNecessary(key);
@@ -260,6 +274,10 @@ public abstract class TransactionSynchronizationManager {
 	 * Return if transaction synchronization is active for the current thread.
 	 * Can be called before register to avoid unnecessary instance creation.
 	 * @see #registerSynchronization
+	 */
+	/**
+	 * 判断当前线程的事务同步标记是否开启（有何用？）
+	 * @return
 	 */
 	public static boolean isSynchronizationActive() {
 		return (synchronizations.get() != null);
